@@ -11,10 +11,8 @@ app.use(cors());
 app.use(express.json());
 
 const uri = process.env.URI;
-
+console.log(uri);
 const client = new MongoClient(uri, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
   serverApi: ServerApiVersion.v1,
 });
 const transporter = nodemailer.createTransport({
@@ -27,9 +25,14 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+const generateVerificationToken = () => {
+  return Math.random().toString(36).substring(2, 15);
+};
+
 const run = async () => {
   try {
     const db = client.db("cpanel");
+    const usersCollection = db.collection("users");
 
     app.get("/sendMail", async (req, res) => {
       const info = await transporter.sendMail({
@@ -44,6 +47,42 @@ const run = async () => {
       console.log(info);
 
       res.json(info);
+    });
+
+    app.post("/sendVerificationEmail", async (req, res) => {
+      const { email } = req.body;
+      const token = generateVerificationToken();
+
+      // Save the token with the user's email in your database
+      const result = await usersCollection.insertOne({
+        email: email,
+        token: token,
+      });
+      // res.json(result);
+      const info = await transporter.sendMail({
+        from: process.env.USER,
+        to: email,
+        subject: "Verify Your Email",
+        html: `<a href="${process.env.BASE_URL}/verifyEmail/${token}">Click here to verify your email</a>`,
+      });
+
+      res.json({ message: "Verification email sent!", token: token });
+    });
+
+    app.get("/verifyEmail/:token", async (req, res) => {
+      const { token } = req.params;
+
+      // Check if the token exists in your database
+      const user =usersCollection.findOne({ verificationToken: token });
+
+      if (!user) {
+        return res.json({ message: "Invalid verification token" });
+      }
+
+      // Step 5: Update User Status
+      await usersCollection.updateOne({ _id: user._id }, { $set: { verified: true } });
+
+      res.json({ message: "Email verified successfully" });
     });
   } finally {
   }
