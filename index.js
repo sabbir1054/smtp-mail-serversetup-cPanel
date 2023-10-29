@@ -6,12 +6,12 @@ const cors = require("cors");
 const { MongoClient, ServerApiVersion } = require("mongodb");
 const sendMail = require("./sendMail");
 const nodemailer = require("nodemailer");
-
+const cron = require("node-cron");
 app.use(cors());
 app.use(express.json());
 
 const uri = process.env.URI;
-console.log(uri);
+
 const client = new MongoClient(uri, {
   serverApi: ServerApiVersion.v1,
 });
@@ -58,6 +58,7 @@ const run = async () => {
         email: email,
         token: token,
         verified: false,
+        createdAt: Date.now(),
       });
       // res.json(result);
       const info = await transporter.sendMail({
@@ -92,6 +93,39 @@ const run = async () => {
         user: user,
       });
     });
+
+    // Schedule a task to run every day at 2:00 AM
+
+    /* 
+    Details about threshold
+    The thresholdTime is used to determine a cutoff point for deleting unverified users. It represents a time threshold before which users need to verify their email addresses.
+
+In this example, it's set to 24 hours (1 day) before the current time. This means that any user who has not verified their email within the last 24 hours will be deleted.
+
+The benefit of using a threshold time like this is to ensure that you don't accidentally delete users who may have just signed up and haven't had a chance to verify their email yet. It provides a grace period for users to complete the email verification process before their accounts are removed.
+
+You can adjust the threshold time based on your specific use case and how long you think it's reasonable to give users to verify their email addresses after signing up.
+    
+    */
+
+    // cron.schedule("0 2 * * *", async () => {
+    //   const thresholdTime = new Date();
+    //   thresholdTime.setDate(thresholdTime.getDate() - 1);
+
+    //   const result = await usersCollection.deleteMany({
+    //     verified: false,
+    //     createdAt: { $lt: thresholdTime },
+    //   });
+
+    //   console.log(`${result.deletedCount} unverified users deleted`);
+    // });
+    //This code works for at 2 am and every unverified user delete at 2 am
+    /*  cron.schedule("0 2 * * * *", async () => {
+      console.log("delete");
+      const result = await usersCollection.deleteMany({
+        verified: false,
+      });
+    }); */
   } finally {
   }
 };
