@@ -57,6 +57,7 @@ const run = async () => {
       const result = await usersCollection.insertOne({
         email: email,
         token: token,
+        verified: false,
       });
       // res.json(result);
       const info = await transporter.sendMail({
@@ -71,18 +72,25 @@ const run = async () => {
 
     app.get("/verifyEmail/:token", async (req, res) => {
       const { token } = req.params;
-
+      console.log(token);
       // Check if the token exists in your database
-      const user =usersCollection.findOne({ verificationToken: token });
+      const user = await usersCollection.findOne({ token: token });
 
       if (!user) {
         return res.json({ message: "Invalid verification token" });
       }
 
       // Step 5: Update User Status
-      await usersCollection.updateOne({ _id: user._id }, { $set: { verified: true } });
+      const result = await usersCollection.updateOne(
+        { _id: user._id },
+        { $set: { verified: true } }
+      );
 
-      res.json({ message: "Email verified successfully" });
+      res.json({
+        message: "Email verified successfully",
+        data: result,
+        user: user,
+      });
     });
   } finally {
   }
